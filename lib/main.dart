@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/login_screen.dart';
+import 'screens/splash_gate.dart';
 
 void main() {
   runApp(const FinancialTrackerApp());
@@ -10,10 +10,9 @@ class FinancialTrackerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Financial Tracker',
-      theme: ThemeData(useMaterial3: true),
-      home: const LoginScreen(),
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: SplashGate(),
     );
   }
 }
