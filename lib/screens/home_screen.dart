@@ -4,6 +4,7 @@ import 'login_screen.dart';
 import '../services/api_client.dart';
 import '../services/category_service.dart';
 import 'categories_screen.dart';
+import '../services/transaction_service.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -74,16 +75,33 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
       body: Center(
-        child: ElevatedButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CategoriesScreen()),
-            );
-          },
-          child: const Text('Open Categories'),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CategoriesScreen()),
+                );
+              },
+              child: const Text('Open Categories'),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () async {
+                final tx = await TransactionService.getTransactions(page: 1, pageSize: 20);
+                debugPrint('Transactions count: ${tx.length}');
+                for (final t in tx) {
+                  debugPrint('TX: ${t.id} - ${t.amount} - ${t.categoryName} - ${t.date}');
+                }
+              },
+              child: const Text('Test: Fetch Transactions'),
+            ),
+          ],
         ),
       ),
+
 
 
     );
