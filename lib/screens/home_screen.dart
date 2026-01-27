@@ -3,6 +3,7 @@ import '../services/token_store.dart';
 import 'login_screen.dart';
 import '../services/api_client.dart';
 import '../services/category_service.dart';
+import 'categories_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -74,16 +75,16 @@ class HomeScreen extends StatelessWidget {
       ),
       body: Center(
         child: ElevatedButton(
-          onPressed: () async {
-            final cats = await CategoryService.getCategories();
-            debugPrint('Categories count: ${cats.length}');
-            for (final c in cats) {
-              debugPrint('Category: ${c.id} - ${c.name} (${c.type})');
-            }
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CategoriesScreen()),
+            );
           },
-          child: const Text('Test: Fetch Categories'),
+          child: const Text('Open Categories'),
         ),
       ),
+
 
     );
   }
