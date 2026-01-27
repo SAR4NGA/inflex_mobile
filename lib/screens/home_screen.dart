@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/token_store.dart';
 import 'login_screen.dart';
 import '../services/api_client.dart';
+import '../services/category_service.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -71,12 +72,19 @@ class HomeScreen extends StatelessWidget {
 
         ],
       ),
-      body: const Center(
-        child: Text(
-          'You are logged in.\nNext: Transactions list.',
-          textAlign: TextAlign.center,
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () async {
+            final cats = await CategoryService.getCategories();
+            debugPrint('Categories count: ${cats.length}');
+            for (final c in cats) {
+              debugPrint('Category: ${c.id} - ${c.name} (${c.type})');
+            }
+          },
+          child: const Text('Test: Fetch Categories'),
         ),
       ),
+
     );
   }
 }
