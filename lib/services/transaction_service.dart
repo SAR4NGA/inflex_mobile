@@ -17,4 +17,26 @@ class TransactionService {
         .map((e) => TransactionItem.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+  static Future<void> addTransaction({
+    required String type,
+    required double amount,
+    required DateTime date,
+    required int categoryId,
+    String? note,
+  }) async {
+    await ApiClient.post(
+      'api/transactions',
+      body: {
+        'type': type,             // ✅ Income / Expense
+        'amount': amount,
+        'date': date.toIso8601String(),
+        'categoryId': categoryId,
+        'userId': 'ignored',      // required by DTO validation, controller ignores it
+        'note': note ?? '',
+      },
+    );
+  }
+
 }
+
+
