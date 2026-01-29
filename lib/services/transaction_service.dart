@@ -2,6 +2,7 @@ import '../models/transaction.dart';
 import 'api_client.dart';
 
 class TransactionService {
+  
   static Future<List<TransactionItem>> getTransactions({
     int page = 1,
     int pageSize = 20,
@@ -17,6 +18,7 @@ class TransactionService {
         .map((e) => TransactionItem.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
   static Future<void> addTransaction({
     required String type,
     required double amount,

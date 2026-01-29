@@ -21,6 +21,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     _load();
   }
 
+  String _formatDate(DateTime d) {
+    final y = d.year.toString();
+    final m = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return '$y-$m-$day';
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -94,12 +101,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           );
 
           if (added == true) {
-            _load(); // refresh list
+            _load();
           }
         },
         child: const Icon(Icons.add),
       ),
-
       appBar: AppBar(
         title: const Text('Transactions'),
         actions: [
@@ -127,7 +133,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             children: [
               const Text('Failed to load transactions'),
               const SizedBox(height: 8),
-              Text(_error!, textAlign: TextAlign.center),
+              const Text('Something went wrong. Please try again.'),
               const SizedBox(height: 12),
               ElevatedButton(
                 onPressed: _load,
@@ -148,12 +154,28 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final t = _transactions[index];
-        final dateText = '${t.date.year}-${t.date.month.toString().padLeft(2, '0')}-${t.date.day.toString().padLeft(2, '0')}';
+        final dateText = _formatDate(t.date);
+        final noteText = t.note.isEmpty ? 'No note' : t.note;
 
         return ListTile(
-          title: Text('${t.categoryName} • ${t.amount.toStringAsFixed(2)}'),
-          subtitle: Text('$dateText${t.note.isEmpty ? '' : ' • ${t.note}'}'),
           leading: const Icon(Icons.receipt_long),
+          title: Text(t.categoryName),
+          subtitle: Text('$noteText\n$dateText'),
+          isThreeLine: true,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                t.amount.toStringAsFixed(2),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.delete),
+                onPressed: () => _confirmAndDelete(t),
+              ),
+            ],
+          ),
         );
       },
     );
