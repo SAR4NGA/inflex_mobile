@@ -35,6 +35,10 @@ class TransactionService {
         'note': note ?? '',
       },
     );
+
+  }
+  static Future<void> deleteTransaction(int id) async {
+    await ApiClient.delete('api/transactions/$id');
   }
 
 }
