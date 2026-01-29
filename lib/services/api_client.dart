@@ -35,6 +35,13 @@ class ApiClient {
     );
     return _handle(res);
   }
+  static Future<dynamic> delete(String path, {bool withAuth = true}) async {
+    final res = await http.delete(
+      _uri(path),
+      headers: await _headers(withAuth: withAuth),
+    );
+    return _handle(res);
+  }
 
   static dynamic _handle(http.Response res) {
     dynamic data;
