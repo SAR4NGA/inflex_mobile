@@ -12,4 +12,9 @@ class CategoryService {
         .map((e) => Category.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+  static Future<Map<int, String>> getCategoryTypeMap() async {
+    final cats = await getCategories();
+    return {for (final c in cats) c.id: c.type};
+  }
+
 }
