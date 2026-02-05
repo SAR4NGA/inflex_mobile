@@ -38,6 +38,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     super.dispose();
   }
 
+  List<Category> _filteredCategories(String type) {
+    final wanted = type.toLowerCase().trim();
+    return _categories
+        .where((c) => c.type.toLowerCase().trim() == wanted)
+        .toList();
+  }
+
   Future<void> _loadCategories() async {
     setState(() {
       _loadingCats = true;
@@ -46,9 +53,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     try {
       final cats = await CategoryService.getCategories();
+
+      // pick first category that matches current type
+      final filtered = cats
+          .where((c) => c.type.toLowerCase().trim() == _type.toLowerCase().trim())
+          .toList();
+
       setState(() {
         _categories = cats;
-        _selectedCategoryId = cats.isNotEmpty ? cats.first.id : null;
+        _selectedCategoryId = filtered.isNotEmpty ? filtered.first.id : null;
         _loadingCats = false;
       });
     } catch (e) {
@@ -128,7 +141,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     DropdownMenuItem(value: 'Income', child: Text('Income')),
                   ],
                   onChanged: (v) {
-                    if (v != null) setState(() => _type = v);
+                    if (v == null) return;
+
+                    setState(() {
+                      _type = v;
+
+                      final filtered = _filteredCategories(_type);
+                      _selectedCategoryId =
+                      filtered.isNotEmpty ? filtered.first.id : null;
+                    });
                   },
                 ),
               ],
@@ -233,14 +254,22 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       );
     }
 
-    if (_categories.isEmpty) {
-      return const Row(
-        children: [
+    final filtered = _filteredCategories(_type);
+
+    if (filtered.isEmpty) {
+      return Row(
+        children: const [
           Text('Category:'),
           SizedBox(width: 12),
-          Text('No categories found'),
+          Expanded(child: Text('No categories for this type')),
         ],
       );
+    }
+
+    // If selected category is no longer in filtered list (safety), reset it
+    if (_selectedCategoryId == null ||
+        !filtered.any((c) => c.id == _selectedCategoryId)) {
+      _selectedCategoryId = filtered.first.id;
     }
 
     return Row(
@@ -251,7 +280,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           child: DropdownButton<int>(
             isExpanded: true,
             value: _selectedCategoryId,
-            items: _categories
+            items: filtered
                 .map(
                   (c) => DropdownMenuItem<int>(
                 value: c.id,
