@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/transaction.dart';
 import '../services/transaction_service.dart';
 import 'add_transaction_screen.dart';
+import 'edit_transaction_screen.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -105,7 +106,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           }
         },
         child: const Icon(Icons.add),
+
       ),
+
       appBar: AppBar(
         title: const Text('Transactions'),
         actions: [
@@ -113,6 +116,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             icon: const Icon(Icons.refresh),
             onPressed: _load,
           ),
+
         ],
       ),
       body: _buildBody(),
@@ -158,6 +162,18 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         final noteText = t.note.isEmpty ? 'No note' : t.note;
 
         return ListTile(
+          onTap: () async {
+            final updated = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => EditTransactionScreen(transaction: t),
+              ),
+            );
+
+            if (updated == true) {
+              _load();
+            }
+          },
           leading: const Icon(Icons.receipt_long),
           title: Text(t.categoryName),
           subtitle: Text('$noteText\n$dateText'),
@@ -177,6 +193,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ],
           ),
         );
+
+
       },
     );
   }

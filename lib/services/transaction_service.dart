@@ -42,6 +42,24 @@ class TransactionService {
   static Future<void> deleteTransaction(int id) async {
     await ApiClient.delete('api/transactions/$id');
   }
+  static Future<void> updateTransaction({
+    required int id,
+    required double amount,
+    required DateTime date,
+    required int categoryId,
+    String? note,
+  }) async {
+    await ApiClient.put(
+      'api/transactions/$id',
+      body: {
+        'amount': amount,
+        'date': date.toIso8601String(),
+        'categoryId': categoryId,
+        'note': note,
+      },
+    );
+  }
+
 
 }
 

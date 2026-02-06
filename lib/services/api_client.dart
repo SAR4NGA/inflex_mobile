@@ -6,6 +6,7 @@ import 'token_store.dart';
 
 class ApiClient {
   static Uri _uri(String path) => Uri.parse('${AppConfig.baseUrl}$path');
+  static const String baseUrl = 'http://10.0.2.2:5125';
 
   static Future<Map<String, String>> _headers({bool withAuth = true}) async {
     final headers = <String, String>{
@@ -35,6 +36,26 @@ class ApiClient {
     );
     return _handle(res);
   }
+  static Future<void> put(
+      String path, {
+        required Map<String, dynamic> body,
+      }) async {
+    final token = await TokenStore().getToken();
+
+    final response = await http.put(
+      Uri.parse('$baseUrl/$path'),
+      headers: {
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('PUT $path failed: ${response.statusCode}');
+    }
+  }
+
   static Future<dynamic> delete(String path, {bool withAuth = true}) async {
     final res = await http.delete(
       _uri(path),
