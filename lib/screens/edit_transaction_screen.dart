@@ -61,11 +61,13 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     try {
       await TransactionService.updateTransaction(
         id: widget.transaction.id,
+        type: widget.transaction.type, // <-- ADD THIS
         amount: amount,
         date: _date,
         categoryId: _selectedCategoryId!,
         note: _noteCtrl.text,
       );
+
 
       if (!mounted) return;
       Navigator.pop(context, true);

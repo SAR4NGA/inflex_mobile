@@ -44,6 +44,7 @@ class TransactionService {
   }
   static Future<void> updateTransaction({
     required int id,
+    required String type, // <-- ADD
     required double amount,
     required DateTime date,
     required int categoryId,
@@ -52,13 +53,15 @@ class TransactionService {
     await ApiClient.put(
       'api/transactions/$id',
       body: {
+        'type': type,
         'amount': amount,
         'date': date.toIso8601String(),
         'categoryId': categoryId,
-        'note': note,
+        'note': note ?? '',
       },
     );
   }
+
 
 
 }
