@@ -16,5 +16,19 @@ class CategoryService {
     final cats = await getCategories();
     return {for (final c in cats) c.id: c.type};
   }
+  static Future<void> addCategory({
+    required String name,
+    required String type, // "Income" or "Expense"
+  }) async {
+    await ApiClient.post(
+      'api/categories',
+      body: {'name': name, 'type': type},
+    );
+  }
+
+  static Future<void> deleteCategory(int id) async {
+    await ApiClient.delete('api/categories/$id');
+  }
+
 
 }

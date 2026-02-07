@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../models/transaction.dart';
 import '../services/transaction_service.dart';
+
 import 'add_transaction_screen.dart';
 import 'edit_transaction_screen.dart';
 
@@ -36,7 +38,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     });
 
     try {
-      final data = await TransactionService.getTransactions(page: 1, pageSize: 20);
+      final data = await TransactionService.getTransactions(page: 1, pageSize: 50);
       setState(() {
         _transactions = data;
         _loading = false;
@@ -49,7 +51,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
   }
 
-  Future<void> _confirmAndDelete(TransactionItem t) async {
+  Future<bool> _confirmDeleteDialog() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -68,24 +70,21 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       ),
     );
 
-    if (confirm != true) return;
+    return confirm == true;
+  }
 
+  Future<void> _deleteTransaction(TransactionItem t) async {
     try {
       await TransactionService.deleteTransaction(t.id);
+      // Refresh list from server (safer)
       await _load();
     } catch (e) {
       if (!mounted) return;
       showDialog(
         context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Delete failed'),
-          content: const Text('Something went wrong. Please try again.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            )
-          ],
+        builder: (_) => const AlertDialog(
+          title: Text('Delete failed'),
+          content: Text('Something went wrong. Please try again.'),
         ),
       );
     }
@@ -94,6 +93,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Transactions'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _load,
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           final added = await Navigator.push(
@@ -106,18 +114,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           }
         },
         child: const Icon(Icons.add),
-
-      ),
-
-      appBar: AppBar(
-        title: const Text('Transactions'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _load,
-          ),
-
-        ],
       ),
       body: _buildBody(),
     );
@@ -161,40 +157,44 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         final dateText = _formatDate(t.date);
         final noteText = t.note.isEmpty ? 'No note' : t.note;
 
-        return ListTile(
-          onTap: () async {
-            final updated = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => EditTransactionScreen(transaction: t),
-              ),
-            );
-
-            if (updated == true) {
-              _load();
-            }
+        return Dismissible(
+          key: ValueKey(t.id),
+          direction: DismissDirection.endToStart,
+          background: Container(
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            color: Colors.red,
+            child: const Icon(Icons.delete, color: Colors.white),
+          ),
+          confirmDismiss: (_) async {
+            return await _confirmDeleteDialog();
           },
-          leading: const Icon(Icons.receipt_long),
-          title: Text(t.categoryName),
-          subtitle: Text('$noteText\n$dateText'),
-          isThreeLine: true,
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                t.amount.toStringAsFixed(2),
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.delete),
-                onPressed: () => _confirmAndDelete(t),
-              ),
-            ],
+          onDismissed: (_) async {
+            await _deleteTransaction(t);
+          },
+          child: ListTile(
+            onTap: () async {
+              final updated = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EditTransactionScreen(transaction: t),
+                ),
+              );
+
+              if (updated == true) {
+                _load();
+              }
+            },
+            title: Text(t.categoryName.isEmpty ? 'Uncategorized' : t.categoryName),
+            subtitle: Text('$noteText\n$dateText'),
+            isThreeLine: true,
+            trailing: Text(
+              t.amount.toStringAsFixed(2),
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            leading: const Icon(Icons.receipt_long),
           ),
         );
-
-
       },
     );
   }
