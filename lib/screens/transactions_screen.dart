@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'import_transactions_screen.dart';
 
 import '../models/transaction.dart';
 import '../services/transaction_service.dart';
@@ -66,6 +67,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Delete'),
           ),
+          IconButton(
+            icon: const Icon(Icons.file_upload),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ImportTransactionsScreen()),
+              );
+              _load(); // refresh list after import
+            },
+          ),
+
         ],
       ),
     );
@@ -97,11 +109,22 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         title: const Text('Transactions'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.file_upload),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ImportTransactionsScreen()),
+              );
+              _load(); // refresh after import
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _load,
           ),
         ],
       ),
+
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           final added = await Navigator.push(
