@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'import_transactions_screen.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../models/transaction.dart';
 import '../services/transaction_service.dart';
+import '../utils/csv_exporter.dart';
 
 import 'add_transaction_screen.dart';
 import 'edit_transaction_screen.dart';
+import 'import_transactions_screen.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -52,6 +54,36 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
   }
 
+  Future<void> _openImport() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ImportTransactionsScreen()),
+    );
+    _load(); // refresh after import
+  }
+
+  Future<void> _exportCsv() async {
+    try {
+      // Export using a larger pull than the UI list (simple MVP)
+      final tx = await TransactionService.getTransactions(page: 1, pageSize: 1000);
+      final file = await CsvExporter.exportTransactions(tx);
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Transactions export',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (_) => const AlertDialog(
+          title: Text('Export failed'),
+          content: Text('Something went wrong. Please try again.'),
+        ),
+      );
+    }
+  }
+
   Future<bool> _confirmDeleteDialog() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -67,17 +99,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Delete'),
           ),
-          IconButton(
-            icon: const Icon(Icons.file_upload),
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ImportTransactionsScreen()),
-              );
-              _load(); // refresh list after import
-            },
-          ),
-
         ],
       ),
     );
@@ -88,7 +109,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   Future<void> _deleteTransaction(TransactionItem t) async {
     try {
       await TransactionService.deleteTransaction(t.id);
-      // Refresh list from server (safer)
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -102,6 +122,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
   }
 
+  Future<void> _openAdd() async {
+    final added = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AddTransactionScreen()),
+    );
+
+    if (added == true) {
+      _load();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -109,33 +140,24 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         title: const Text('Transactions'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.file_download),
+            tooltip: 'Export CSV',
+            onPressed: _exportCsv,
+          ),
+          IconButton(
             icon: const Icon(Icons.file_upload),
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ImportTransactionsScreen()),
-              );
-              _load(); // refresh after import
-            },
+            tooltip: 'Import CSV',
+            onPressed: _openImport,
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
             onPressed: _load,
           ),
         ],
       ),
-
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final added = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AddTransactionScreen()),
-          );
-
-          if (added == true) {
-            _load();
-          }
-        },
+        onPressed: _openAdd,
         child: const Icon(Icons.add),
       ),
       body: _buildBody(),
@@ -189,12 +211,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             color: Colors.red,
             child: const Icon(Icons.delete, color: Colors.white),
           ),
-          confirmDismiss: (_) async {
-            return await _confirmDeleteDialog();
-          },
-          onDismissed: (_) async {
-            await _deleteTransaction(t);
-          },
+          confirmDismiss: (_) async => await _confirmDeleteDialog(),
+          onDismissed: (_) async => await _deleteTransaction(t),
           child: ListTile(
             onTap: () async {
               final updated = await Navigator.push(
