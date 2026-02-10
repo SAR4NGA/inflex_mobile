@@ -41,7 +41,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     });
 
     try {
-      final data = await TransactionService.getTransactions(page: 1, pageSize: 50);
+      final data =
+      await TransactionService.getTransactions(page: 1, pageSize: 50);
       setState(() {
         _transactions = data;
         _loading = false;
@@ -64,7 +65,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   Future<void> _exportCsv() async {
     try {
-      // Export using a larger pull than the UI list (simple MVP)
       final tx = await TransactionService.getTransactions(page: 1, pageSize: 1000);
       final file = await CsvExporter.exportTransactions(tx);
 
@@ -133,6 +133,84 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
   }
 
+  // ---------- Table UI helpers ----------
+
+  Widget _tableHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      color: Colors.grey.shade200,
+      child: const Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          Expanded(
+            flex: 3,
+            child:
+            Text('Category', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          Expanded(
+            flex: 4,
+            child: Text('Note', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          Expanded(
+            flex: 2,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child:
+              Text('Amount', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tableRow(TransactionItem t) {
+    final dateText = _formatDate(t.date);
+    final categoryText = t.categoryName.isEmpty ? 'Uncategorized' : t.categoryName;
+    final noteText = t.note.isEmpty ? '-' : t.note;
+
+    return InkWell(
+      onTap: () async {
+        final updated = await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => EditTransactionScreen(transaction: t)),
+        );
+        if (updated == true) _load();
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Expanded(flex: 2, child: Text(dateText)),
+            Expanded(
+              flex: 3,
+              child: Text(categoryText, overflow: TextOverflow.ellipsis),
+            ),
+            Expanded(
+              flex: 4,
+              child: Text(noteText, overflow: TextOverflow.ellipsis),
+            ),
+            Expanded(
+              flex: 2,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  t.amount.toStringAsFixed(2),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------- Build ----------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -194,49 +272,34 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       return const Center(child: Text('No transactions yet.'));
     }
 
-    return ListView.separated(
-      itemCount: _transactions.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        final t = _transactions[index];
-        final dateText = _formatDate(t.date);
-        final noteText = t.note.isEmpty ? 'No note' : t.note;
+    return Column(
+      children: [
+        _tableHeader(),
+        const Divider(height: 1),
+        Expanded(
+          child: ListView.separated(
+            itemCount: _transactions.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final t = _transactions[index];
 
-        return Dismissible(
-          key: ValueKey(t.id),
-          direction: DismissDirection.endToStart,
-          background: Container(
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            color: Colors.red,
-            child: const Icon(Icons.delete, color: Colors.white),
-          ),
-          confirmDismiss: (_) async => await _confirmDeleteDialog(),
-          onDismissed: (_) async => await _deleteTransaction(t),
-          child: ListTile(
-            onTap: () async {
-              final updated = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => EditTransactionScreen(transaction: t),
+              return Dismissible(
+                key: ValueKey(t.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  color: Colors.red,
+                  child: const Icon(Icons.delete, color: Colors.white),
                 ),
+                confirmDismiss: (_) async => await _confirmDeleteDialog(),
+                onDismissed: (_) async => await _deleteTransaction(t),
+                child: _tableRow(t),
               );
-
-              if (updated == true) {
-                _load();
-              }
             },
-            title: Text(t.categoryName.isEmpty ? 'Uncategorized' : t.categoryName),
-            subtitle: Text('$noteText\n$dateText'),
-            isThreeLine: true,
-            trailing: Text(
-              t.amount.toStringAsFixed(2),
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            leading: const Icon(Icons.receipt_long),
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 }
