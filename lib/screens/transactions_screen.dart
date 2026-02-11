@@ -19,7 +19,9 @@ class TransactionsScreen extends StatefulWidget {
 class _TransactionsScreenState extends State<TransactionsScreen> {
   bool _loading = true;
   String? _error;
+
   List<TransactionItem> _transactions = [];
+  bool _showAll = false;
 
   @override
   void initState() {
@@ -38,11 +40,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     setState(() {
       _loading = true;
       _error = null;
+      _showAll = false;
     });
 
     try {
-      final data =
-      await TransactionService.getTransactions(page: 1, pageSize: 50);
+      final data = await TransactionService.getTransactions(page: 1, pageSize: 50);
       setState(() {
         _transactions = data;
         _loading = false;
@@ -147,8 +149,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ),
           Expanded(
             flex: 3,
-            child:
-            Text('Category', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text('Category', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
           Expanded(
             flex: 4,
@@ -158,8 +159,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             flex: 2,
             child: Align(
               alignment: Alignment.centerRight,
-              child:
-              Text('Amount', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ),
         ],
@@ -272,29 +272,69 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       return const Center(child: Text('No transactions yet.'));
     }
 
+    final canExpand = _transactions.length > 4;
+
+    // Collapsed: show 4 tx + a "More" row (5th row)
+    // Expanded: show all tx (and we’ll add "Less" row at end)
+    final itemCount = _showAll
+        ? _transactions.length + (canExpand ? 1 : 0) // +1 for "Less"
+        : (canExpand ? 5 : _transactions.length);    // 4 tx + "More"
+
     return Column(
       children: [
         _tableHeader(),
         const Divider(height: 1),
         Expanded(
-          child: ListView.separated(
-            itemCount: _transactions.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+          child: ListView.builder(
+            itemCount: itemCount,
             itemBuilder: (context, index) {
-              final t = _transactions[index];
+              // COLLAPSED: index 4 is "More"
+              if (!_showAll && canExpand && index == 4) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Center(
+                    child: TextButton(
+                      onPressed: () => setState(() => _showAll = true),
+                      child: const Text('More'),
+                    ),
+                  ),
+                );
+              }
 
-              return Dismissible(
-                key: ValueKey(t.id),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  color: Colors.red,
-                  child: const Icon(Icons.delete, color: Colors.white),
-                ),
-                confirmDismiss: (_) async => await _confirmDeleteDialog(),
-                onDismissed: (_) async => await _deleteTransaction(t),
-                child: _tableRow(t),
+              // EXPANDED: last row is "Less"
+              if (_showAll && canExpand && index == itemCount - 1) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Center(
+                    child: TextButton(
+                      onPressed: () => setState(() => _showAll = false),
+                      child: const Text('Less'),
+                    ),
+                  ),
+                );
+              }
+
+              // For transactions, map the index correctly in each mode
+              final txIndex = index; // works because "More" only exists at the end in collapsed mode
+              final t = _transactions[txIndex];
+
+              return Column(
+                children: [
+                  Dismissible(
+                    key: ValueKey(t.id),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      color: Colors.red,
+                      child: const Icon(Icons.delete, color: Colors.white),
+                    ),
+                    confirmDismiss: (_) async => await _confirmDeleteDialog(),
+                    onDismissed: (_) async => await _deleteTransaction(t),
+                    child: _tableRow(t),
+                  ),
+                  const Divider(height: 1),
+                ],
               );
             },
           ),
