@@ -23,6 +23,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   List<TransactionItem> _transactions = [];
   bool _showAll = false;
 
+  // Breakdown expand (separate from tx table)
+  bool _showAllExpenses = false;
+
   @override
   void initState() {
     super.initState();
@@ -41,6 +44,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       _loading = true;
       _error = null;
       _showAll = false;
+      _showAllExpenses = false;
     });
 
     try {
@@ -209,6 +213,55 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
+  // ---------- Expense breakdown (Day 3) ----------
+
+  List<_BreakdownRow> _expenseBreakdown() {
+    // Assumption: expense is negative amount
+    final map = <String, double>{};
+
+    for (final t in _transactions) {
+      if (t.amount >= 0) continue; // expense only
+      final name = (t.categoryName.isEmpty ? 'Uncategorized' : t.categoryName).trim();
+      map[name] = (map[name] ?? 0) + t.amount.abs(); // show expense as positive
+    }
+
+    final rows = map.entries
+        .map((e) => _BreakdownRow(category: e.key, total: e.value))
+        .toList();
+
+    rows.sort((a, b) => b.total.compareTo(a.total)); // highest first
+    return rows;
+  }
+
+  Widget _breakdownHeader(String title) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      color: Colors.grey.shade200,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          const Text('Total', style: TextStyle(fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _breakdownRow(_BreakdownRow r) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(r.category, overflow: TextOverflow.ellipsis),
+          ),
+          Text(r.total.toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
   // ---------- Build ----------
 
   @override
@@ -276,70 +329,145 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
     // Collapsed: show 4 tx + a "More" row (5th row)
     // Expanded: show all tx (and we’ll add "Less" row at end)
-    final itemCount = _showAll
+    final txItemCount = _showAll
         ? _transactions.length + (canExpand ? 1 : 0) // +1 for "Less"
-        : (canExpand ? 5 : _transactions.length);    // 4 tx + "More"
+        : (canExpand ? 5 : _transactions.length); // 4 tx + "More"
+
+    // Expense breakdown rows
+    final expenseRows = _expenseBreakdown();
+    final canExpandExpense = expenseRows.length > 4;
+
+    final expenseItemCount = _showAllExpenses
+        ? expenseRows.length + (canExpandExpense ? 1 : 0)
+        : (canExpandExpense ? 5 : expenseRows.length);
 
     return Column(
       children: [
+        // ----- Transactions table -----
         _tableHeader(),
         const Divider(height: 1),
         Expanded(
-          child: ListView.builder(
-            itemCount: itemCount,
-            itemBuilder: (context, index) {
-              // COLLAPSED: index 4 is "More"
-              if (!_showAll && canExpand && index == 4) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Center(
-                    child: TextButton(
-                      onPressed: () => setState(() => _showAll = true),
-                      child: const Text('More'),
-                    ),
-                  ),
-                );
-              }
+          child: ListView(
+            children: [
+              // Transactions list (table)
+              SizedBox(
+                height: 320, // keeps both sections visible; adjust if you like
+                child: ListView.builder(
+                  itemCount: txItemCount,
+                  itemBuilder: (context, index) {
+                    // COLLAPSED: index 4 is "More"
+                    if (!_showAll && canExpand && index == 4) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Center(
+                          child: TextButton(
+                            onPressed: () => setState(() => _showAll = true),
+                            child: const Text('More'),
+                          ),
+                        ),
+                      );
+                    }
 
-              // EXPANDED: last row is "Less"
-              if (_showAll && canExpand && index == itemCount - 1) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Center(
-                    child: TextButton(
-                      onPressed: () => setState(() => _showAll = false),
-                      child: const Text('Less'),
-                    ),
-                  ),
-                );
-              }
+                    // EXPANDED: last row is "Less"
+                    if (_showAll && canExpand && index == txItemCount - 1) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Center(
+                          child: TextButton(
+                            onPressed: () => setState(() => _showAll = false),
+                            child: const Text('Less'),
+                          ),
+                        ),
+                      );
+                    }
 
-              // For transactions, map the index correctly in each mode
-              final txIndex = index; // works because "More" only exists at the end in collapsed mode
-              final t = _transactions[txIndex];
+                    final t = _transactions[index];
 
-              return Column(
-                children: [
-                  Dismissible(
-                    key: ValueKey(t.id),
-                    direction: DismissDirection.endToStart,
-                    background: Container(
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      color: Colors.red,
-                      child: const Icon(Icons.delete, color: Colors.white),
-                    ),
-                    confirmDismiss: (_) async => await _confirmDeleteDialog(),
-                    onDismissed: (_) async => await _deleteTransaction(t),
-                    child: _tableRow(t),
-                  ),
-                  const Divider(height: 1),
-                ],
-              );
-            },
+                    return Column(
+                      children: [
+                        Dismissible(
+                          key: ValueKey(t.id),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            color: Colors.red,
+                            child: const Icon(Icons.delete, color: Colors.white),
+                          ),
+                          confirmDismiss: (_) async => await _confirmDeleteDialog(),
+                          onDismissed: (_) async => await _deleteTransaction(t),
+                          child: _tableRow(t),
+                        ),
+                        const Divider(height: 1),
+                      ],
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ----- Expense breakdown table -----
+              _breakdownHeader('Expense breakdown'),
+              const Divider(height: 1),
+
+              if (expenseRows.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text('No expenses found.'),
+                )
+              else
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: expenseItemCount,
+                  itemBuilder: (context, index) {
+                    // COLLAPSED: index 4 is "More"
+                    if (!_showAllExpenses && canExpandExpense && index == 4) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Center(
+                          child: TextButton(
+                            onPressed: () => setState(() => _showAllExpenses = true),
+                            child: const Text('More'),
+                          ),
+                        ),
+                      );
+                    }
+
+                    // EXPANDED: last row is "Less"
+                    if (_showAllExpenses && canExpandExpense && index == expenseItemCount - 1) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Center(
+                          child: TextButton(
+                            onPressed: () => setState(() => _showAllExpenses = false),
+                            child: const Text('Less'),
+                          ),
+                        ),
+                      );
+                    }
+
+                    final r = expenseRows[index];
+                    return Column(
+                      children: [
+                        _breakdownRow(r),
+                        const Divider(height: 1),
+                      ],
+                    );
+                  },
+                ),
+            ],
           ),
         ),
       ],
     );
   }
+}
+
+class _BreakdownRow {
+  final String category;
+  final double total;
+
+  _BreakdownRow({required this.category, required this.total});
 }
