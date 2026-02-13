@@ -25,6 +25,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   // Breakdown expand (separate from tx table)
   bool _showAllExpenses = false;
+  bool _showAllIncome = false;
 
   @override
   void initState() {
@@ -45,6 +46,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       _error = null;
       _showAll = false;
       _showAllExpenses = false;
+      _showAllIncome = false;
+
     });
 
     try {
@@ -232,6 +235,22 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     rows.sort((a, b) => b.total.compareTo(a.total)); // highest first
     return rows;
   }
+  List<_BreakdownRow> _incomeBreakdown() {
+    final map = <String, double>{};
+
+    for (final t in _transactions) {
+      if (t.amount <= 0) continue; // income only
+      final name = (t.categoryName.isEmpty ? 'Uncategorized' : t.categoryName).trim();
+      map[name] = (map[name] ?? 0) + t.amount; // income already positive
+    }
+
+    final rows = map.entries
+        .map((e) => _BreakdownRow(category: e.key, total: e.value))
+        .toList();
+
+    rows.sort((a, b) => b.total.compareTo(a.total));
+    return rows;
+  }
 
   Widget _breakdownHeader(String title) {
     return Container(
@@ -340,6 +359,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     final expenseItemCount = _showAllExpenses
         ? expenseRows.length + (canExpandExpense ? 1 : 0)
         : (canExpandExpense ? 5 : expenseRows.length);
+
+    final incomeRows = _incomeBreakdown();
+    final canExpandIncome = incomeRows.length > 4;
+
+    final incomeItemCount = _showAllIncome
+        ? incomeRows.length + (canExpandIncome ? 1 : 0)
+        : (canExpandIncome ? 5 : incomeRows.length);
 
     return Column(
       children: [
@@ -457,7 +483,60 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     );
                   },
                 ),
+              const SizedBox(height: 16),
+
+              _breakdownHeader('Income breakdown'),
+              const Divider(height: 1),
+
+              if (incomeRows.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text('No income found.'),
+                )
+              else
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: incomeItemCount,
+                  itemBuilder: (context, index) {
+                    // COLLAPSED: index 4 is "More"
+                    if (!_showAllIncome && canExpandIncome && index == 4) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Center(
+                          child: TextButton(
+                            onPressed: () => setState(() => _showAllIncome = true),
+                            child: const Text('More'),
+                          ),
+                        ),
+                      );
+                    }
+
+                    // EXPANDED: last row is "Less"
+                    if (_showAllIncome && canExpandIncome && index == incomeItemCount - 1) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Center(
+                          child: TextButton(
+                            onPressed: () => setState(() => _showAllIncome = false),
+                            child: const Text('Less'),
+                          ),
+                        ),
+                      );
+                    }
+
+                    final r = incomeRows[index];
+                    return Column(
+                      children: [
+                        _breakdownRow(r),
+                        const Divider(height: 1),
+                      ],
+                    );
+                  },
+                ),
+
             ],
+
           ),
         ),
       ],
