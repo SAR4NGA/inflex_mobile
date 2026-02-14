@@ -367,180 +367,175 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         ? incomeRows.length + (canExpandIncome ? 1 : 0)
         : (canExpandIncome ? 5 : incomeRows.length);
 
-    return Column(
-      children: [
-        // ----- Transactions table -----
-        _tableHeader(),
-        const Divider(height: 1),
-        Expanded(
-          child: ListView(
-            children: [
-              // Transactions list (table)
-              SizedBox(
-                height: 320, // keeps both sections visible; adjust if you like
-                child: ListView.builder(
-                  itemCount: txItemCount,
-                  itemBuilder: (context, index) {
-                    // COLLAPSED: index 4 is "More"
-                    if (!_showAll && canExpand && index == 4) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Center(
-                          child: TextButton(
-                            onPressed: () => setState(() => _showAll = true),
-                            child: const Text('More'),
-                          ),
-                        ),
-                      );
-                    }
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ----- Transactions table -----
+          _tableHeader(),
+          const Divider(height: 1),
 
-                    // EXPANDED: last row is "Less"
-                    if (_showAll && canExpand && index == txItemCount - 1) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Center(
-                          child: TextButton(
-                            onPressed: () => setState(() => _showAll = false),
-                            child: const Text('Less'),
-                          ),
-                        ),
-                      );
-                    }
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: txItemCount,
+            itemBuilder: (context, index) {
+              // COLLAPSED: index 4 is "More"
+              if (!_showAll && canExpand && index == 4) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Center(
+                    child: TextButton(
+                      onPressed: () => setState(() => _showAll = true),
+                      child: const Text('More'),
+                    ),
+                  ),
+                );
+              }
 
-                    final t = _transactions[index];
+              // EXPANDED: last row is "Less"
+              if (_showAll && canExpand && index == txItemCount - 1) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Center(
+                    child: TextButton(
+                      onPressed: () => setState(() => _showAll = false),
+                      child: const Text('Less'),
+                    ),
+                  ),
+                );
+              }
 
-                    return Column(
-                      children: [
-                        Dismissible(
-                          key: ValueKey(t.id),
-                          direction: DismissDirection.endToStart,
-                          background: Container(
-                            alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            color: Colors.red,
-                            child: const Icon(Icons.delete, color: Colors.white),
-                          ),
-                          confirmDismiss: (_) async => await _confirmDeleteDialog(),
-                          onDismissed: (_) async => await _deleteTransaction(t),
-                          child: _tableRow(t),
-                        ),
-                        const Divider(height: 1),
-                      ],
-                    );
-                  },
-                ),
-              ),
+              final t = _transactions[index];
 
-              const SizedBox(height: 16),
-
-              // ----- Expense breakdown table -----
-              _breakdownHeader('Expense breakdown'),
-              const Divider(height: 1),
-
-              if (expenseRows.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Text('No expenses found.'),
-                )
-              else
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: expenseItemCount,
-                  itemBuilder: (context, index) {
-                    // COLLAPSED: index 4 is "More"
-                    if (!_showAllExpenses && canExpandExpense && index == 4) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Center(
-                          child: TextButton(
-                            onPressed: () => setState(() => _showAllExpenses = true),
-                            child: const Text('More'),
-                          ),
-                        ),
-                      );
-                    }
-
-                    // EXPANDED: last row is "Less"
-                    if (_showAllExpenses && canExpandExpense && index == expenseItemCount - 1) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Center(
-                          child: TextButton(
-                            onPressed: () => setState(() => _showAllExpenses = false),
-                            child: const Text('Less'),
-                          ),
-                        ),
-                      );
-                    }
-
-                    final r = expenseRows[index];
-                    return Column(
-                      children: [
-                        _breakdownRow(r),
-                        const Divider(height: 1),
-                      ],
-                    );
-                  },
-                ),
-              const SizedBox(height: 16),
-
-              _breakdownHeader('Income breakdown'),
-              const Divider(height: 1),
-
-              if (incomeRows.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Text('No income found.'),
-                )
-              else
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: incomeItemCount,
-                  itemBuilder: (context, index) {
-                    // COLLAPSED: index 4 is "More"
-                    if (!_showAllIncome && canExpandIncome && index == 4) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Center(
-                          child: TextButton(
-                            onPressed: () => setState(() => _showAllIncome = true),
-                            child: const Text('More'),
-                          ),
-                        ),
-                      );
-                    }
-
-                    // EXPANDED: last row is "Less"
-                    if (_showAllIncome && canExpandIncome && index == incomeItemCount - 1) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Center(
-                          child: TextButton(
-                            onPressed: () => setState(() => _showAllIncome = false),
-                            child: const Text('Less'),
-                          ),
-                        ),
-                      );
-                    }
-
-                    final r = incomeRows[index];
-                    return Column(
-                      children: [
-                        _breakdownRow(r),
-                        const Divider(height: 1),
-                      ],
-                    );
-                  },
-                ),
-
-            ],
-
+              return Column(
+                children: [
+                  Dismissible(
+                    key: ValueKey(t.id),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      color: Colors.red,
+                      child: const Icon(Icons.delete, color: Colors.white),
+                    ),
+                    confirmDismiss: (_) async => await _confirmDeleteDialog(),
+                    onDismissed: (_) async => await _deleteTransaction(t),
+                    child: _tableRow(t),
+                  ),
+                  const Divider(height: 1),
+                ],
+              );
+            },
           ),
-        ),
-      ],
+
+          const SizedBox(height: 16),
+
+          // ----- Expense breakdown table -----
+          _breakdownHeader('Expense breakdown'),
+          const Divider(height: 1),
+
+          if (expenseRows.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('No expenses found.'),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: expenseItemCount,
+              itemBuilder: (context, index) {
+                if (!_showAllExpenses && canExpandExpense && index == 4) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Center(
+                      child: TextButton(
+                        onPressed: () => setState(() => _showAllExpenses = true),
+                        child: const Text('More'),
+                      ),
+                    ),
+                  );
+                }
+
+                if (_showAllExpenses && canExpandExpense && index == expenseItemCount - 1) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Center(
+                      child: TextButton(
+                        onPressed: () => setState(() => _showAllExpenses = false),
+                        child: const Text('Less'),
+                      ),
+                    ),
+                  );
+                }
+
+                final r = expenseRows[index];
+                return Column(
+                  children: [
+                    _breakdownRow(r),
+                    const Divider(height: 1),
+                  ],
+                );
+              },
+            ),
+
+          const SizedBox(height: 16),
+
+          // ----- Income breakdown table -----
+          _breakdownHeader('Income breakdown'),
+          const Divider(height: 1),
+
+          if (incomeRows.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('No income found.'),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: incomeItemCount,
+              itemBuilder: (context, index) {
+                if (!_showAllIncome && canExpandIncome && index == 4) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Center(
+                      child: TextButton(
+                        onPressed: () => setState(() => _showAllIncome = true),
+                        child: const Text('More'),
+                      ),
+                    ),
+                  );
+                }
+
+                if (_showAllIncome && canExpandIncome && index == incomeItemCount - 1) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Center(
+                      child: TextButton(
+                        onPressed: () => setState(() => _showAllIncome = false),
+                        child: const Text('Less'),
+                      ),
+                    ),
+                  );
+                }
+
+                final r = incomeRows[index];
+                return Column(
+                  children: [
+                    _breakdownRow(r),
+                    const Divider(height: 1),
+                  ],
+                );
+              },
+            ),
+
+          const SizedBox(height: 24),
+        ],
+      ),
     );
+
   }
 }
 
