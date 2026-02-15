@@ -3,6 +3,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../models/transaction.dart';
 import '../services/transaction_service.dart';
+import '../services/category_service.dart';
 import '../utils/csv_exporter.dart';
 
 import 'add_transaction_screen.dart';
@@ -22,6 +23,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   List<TransactionItem> _transactions = [];
   bool _showAll = false;
+
+  // Categories (used for breakdown)
+  Map<String, String> _typeByCategoryName = {};
 
   // Breakdown expand (separate from tx table)
   bool _showAllExpenses = false;
@@ -47,13 +51,20 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       _showAll = false;
       _showAllExpenses = false;
       _showAllIncome = false;
-
     });
 
     try {
-      final data = await TransactionService.getTransactions(page: 1, pageSize: 50);
+      final cats = await CategoryService.getCategories();
+      final tx = await TransactionService.getTransactions(page: 1, pageSize: 50);
+
+      final map = <String, String>{};
+      for (final c in cats) {
+        map[c.name.trim().toLowerCase()] = c.type.trim();
+      }
+
       setState(() {
-        _transactions = data;
+        _typeByCategoryName = map;
+        _transactions = tx;
         _loading = false;
       });
     } catch (e) {
@@ -216,32 +227,42 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  // ---------- Expense breakdown (Day 3) ----------
+  // ---------- Breakdown helpers ----------
+
+  String _categoryTypeFor(TransactionItem t) {
+    final name = (t.categoryName.isEmpty ? 'Uncategorized' : t.categoryName)
+        .trim()
+        .toLowerCase();
+
+    return _typeByCategoryName[name] ?? '';
+  }
 
   List<_BreakdownRow> _expenseBreakdown() {
-    // Assumption: expense is negative amount
     final map = <String, double>{};
 
     for (final t in _transactions) {
-      if (t.amount >= 0) continue; // expense only
+      if (_categoryTypeFor(t) != 'Expense') continue;
+
       final name = (t.categoryName.isEmpty ? 'Uncategorized' : t.categoryName).trim();
-      map[name] = (map[name] ?? 0) + t.amount.abs(); // show expense as positive
+      map[name] = (map[name] ?? 0) + t.amount; // expenses are positive in your app
     }
 
     final rows = map.entries
         .map((e) => _BreakdownRow(category: e.key, total: e.value))
         .toList();
 
-    rows.sort((a, b) => b.total.compareTo(a.total)); // highest first
+    rows.sort((a, b) => b.total.compareTo(a.total));
     return rows;
   }
+
   List<_BreakdownRow> _incomeBreakdown() {
     final map = <String, double>{};
 
     for (final t in _transactions) {
-      if (t.amount <= 0) continue; // income only
+      if (_categoryTypeFor(t) != 'Income') continue;
+
       final name = (t.categoryName.isEmpty ? 'Uncategorized' : t.categoryName).trim();
-      map[name] = (map[name] ?? 0) + t.amount; // income already positive
+      map[name] = (map[name] ?? 0) + t.amount;
     }
 
     final rows = map.entries
@@ -275,7 +296,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           Expanded(
             child: Text(r.category, overflow: TextOverflow.ellipsis),
           ),
-          Text(r.total.toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            r.total.toStringAsFixed(2),
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
         ],
       ),
     );
@@ -346,23 +370,18 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
     final canExpand = _transactions.length > 4;
 
-    // Collapsed: show 4 tx + a "More" row (5th row)
-    // Expanded: show all tx (and we’ll add "Less" row at end)
     final txItemCount = _showAll
         ? _transactions.length + (canExpand ? 1 : 0) // +1 for "Less"
         : (canExpand ? 5 : _transactions.length); // 4 tx + "More"
 
-    // Expense breakdown rows
     final expenseRows = _expenseBreakdown();
     final canExpandExpense = expenseRows.length > 4;
-
     final expenseItemCount = _showAllExpenses
         ? expenseRows.length + (canExpandExpense ? 1 : 0)
         : (canExpandExpense ? 5 : expenseRows.length);
 
     final incomeRows = _incomeBreakdown();
     final canExpandIncome = incomeRows.length > 4;
-
     final incomeItemCount = _showAllIncome
         ? incomeRows.length + (canExpandIncome ? 1 : 0)
         : (canExpandIncome ? 5 : incomeRows.length);
@@ -380,7 +399,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             physics: const NeverScrollableScrollPhysics(),
             itemCount: txItemCount,
             itemBuilder: (context, index) {
-              // COLLAPSED: index 4 is "More"
               if (!_showAll && canExpand && index == 4) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
@@ -393,7 +411,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 );
               }
 
-              // EXPANDED: last row is "Less"
               if (_showAll && canExpand && index == txItemCount - 1) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
@@ -535,7 +552,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         ],
       ),
     );
-
   }
 }
 
