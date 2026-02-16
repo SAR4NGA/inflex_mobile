@@ -10,6 +10,8 @@ import 'add_transaction_screen.dart';
 import 'edit_transaction_screen.dart';
 import 'import_transactions_screen.dart';
 
+enum TxTypeFilter { all, expense, income }
+
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
 
@@ -31,6 +33,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   bool _showAllExpenses = false;
   bool _showAllIncome = false;
 
+  // -------- Filters (Day 6) --------
+  int? _filterYear;
+  int? _filterMonth;
+  int? _filterDay;
+
+  TxTypeFilter _typeFilter = TxTypeFilter.all;
+
   @override
   void initState() {
     super.initState();
@@ -48,9 +57,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     setState(() {
       _loading = true;
       _error = null;
+
       _showAll = false;
       _showAllExpenses = false;
       _showAllIncome = false;
+      // keep filters as-is; don’t reset them on refresh
     });
 
     try {
@@ -227,7 +238,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  // ---------- Breakdown helpers ----------
+  // ---------- Category type + breakdown helpers ----------
 
   String _categoryTypeFor(TransactionItem t) {
     final name = (t.categoryName.isEmpty ? 'Uncategorized' : t.categoryName)
@@ -237,10 +248,38 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     return _typeByCategoryName[name] ?? '';
   }
 
-  List<_BreakdownRow> _expenseBreakdown() {
+  // Filters apply here
+  List<TransactionItem> _applyFilters(List<TransactionItem> source) {
+    Iterable<TransactionItem> out = source;
+
+    // Date filter (partial)
+    if (_filterYear != null) {
+      out = out.where((t) {
+        final d = t.date;
+        if (d.year != _filterYear) return false;
+        if (_filterMonth != null && d.month != _filterMonth) return false;
+        if (_filterDay != null && d.day != _filterDay) return false;
+        return true;
+      });
+    }
+
+    // Type filter
+    if (_typeFilter != TxTypeFilter.all) {
+      out = out.where((t) {
+        final type = _categoryTypeFor(t);
+        if (_typeFilter == TxTypeFilter.expense) return type == 'Expense';
+        if (_typeFilter == TxTypeFilter.income) return type == 'Income';
+        return true;
+      });
+    }
+
+    return out.toList();
+  }
+
+  List<_BreakdownRow> _expenseBreakdown(List<TransactionItem> tx) {
     final map = <String, double>{};
 
-    for (final t in _transactions) {
+    for (final t in tx) {
       if (_categoryTypeFor(t) != 'Expense') continue;
 
       final name = (t.categoryName.isEmpty ? 'Uncategorized' : t.categoryName).trim();
@@ -255,10 +294,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     return rows;
   }
 
-  List<_BreakdownRow> _incomeBreakdown() {
+  List<_BreakdownRow> _incomeBreakdown(List<TransactionItem> tx) {
     final map = <String, double>{};
 
-    for (final t in _transactions) {
+    for (final t in tx) {
       if (_categoryTypeFor(t) != 'Income') continue;
 
       final name = (t.categoryName.isEmpty ? 'Uncategorized' : t.categoryName).trim();
@@ -301,6 +340,126 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ],
+      ),
+    );
+  }
+
+  // ---------- Filter UI (Day 6) ----------
+
+  Widget _buildFilterCard() {
+    final years = List.generate(15, (i) => DateTime.now().year - i);
+    final months = List.generate(12, (i) => i + 1);
+
+    int daysInMonth(int year, int month) {
+      final nextMonth = (month == 12) ? DateTime(year + 1, 1, 1) : DateTime(year, month + 1, 1);
+      return nextMonth.subtract(const Duration(days: 1)).day;
+    }
+
+    final dayOptions = (_filterYear != null && _filterMonth != null)
+        ? List.generate(daysInMonth(_filterYear!, _filterMonth!), (i) => i + 1)
+        : <int>[];
+
+    return Card(
+      margin: const EdgeInsets.all(12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Filters', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+
+            // Type filter
+            DropdownButtonFormField<TxTypeFilter>(
+              initialValue: _typeFilter,
+              decoration: const InputDecoration(labelText: 'Type'),
+              items: const [
+                DropdownMenuItem(value: TxTypeFilter.all, child: Text('All')),
+                DropdownMenuItem(value: TxTypeFilter.expense, child: Text('Expense')),
+                DropdownMenuItem(value: TxTypeFilter.income, child: Text('Income')),
+              ],
+              onChanged: (v) => setState(() => _typeFilter = v ?? TxTypeFilter.all),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Date filter (partial)
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    initialValue: _filterYear,
+                    decoration: const InputDecoration(labelText: 'Year'),
+                    items: years
+                        .map((y) => DropdownMenuItem<int>(value: y, child: Text('$y')))
+                        .toList(),
+                    onChanged: (v) {
+                      setState(() {
+                        _filterYear = v;
+                        _filterMonth = null;
+                        _filterDay = null;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    initialValue: _filterMonth,
+                    decoration: const InputDecoration(labelText: 'Month'),
+                    items: months
+                        .map((m) => DropdownMenuItem<int>(
+                      value: m,
+                      child: Text(m.toString().padLeft(2, '0')),
+                    ))
+                        .toList(),
+                    onChanged: (_filterYear == null)
+                        ? null
+                        : (v) {
+                      setState(() {
+                        _filterMonth = v;
+                        _filterDay = null;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    initialValue: _filterDay,
+                    decoration: const InputDecoration(labelText: 'Day'),
+                    items: dayOptions
+                        .map((d) => DropdownMenuItem<int>(
+                      value: d,
+                      child: Text(d.toString().padLeft(2, '0')),
+                    ))
+                        .toList(),
+                    onChanged: dayOptions.isEmpty
+                        ? null
+                        : (v) => setState(() => _filterDay = v),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () {
+                  setState(() {
+                    _filterYear = null;
+                    _filterMonth = null;
+                    _filterDay = null;
+                    _typeFilter = TxTypeFilter.all;
+                  });
+                },
+                child: const Text('Clear filters'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -364,23 +523,32 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       );
     }
 
-    if (_transactions.isEmpty) {
-      return const Center(child: Text('No transactions yet.'));
+    final filteredTx = _applyFilters(_transactions);
+
+    if (filteredTx.isEmpty) {
+      return ListView(
+        children: [
+          _buildFilterCard(),
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(child: Text('No transactions match the filters.')),
+          ),
+        ],
+      );
     }
 
-    final canExpand = _transactions.length > 4;
-
+    final canExpandTx = filteredTx.length > 4;
     final txItemCount = _showAll
-        ? _transactions.length + (canExpand ? 1 : 0) // +1 for "Less"
-        : (canExpand ? 5 : _transactions.length); // 4 tx + "More"
+        ? filteredTx.length + (canExpandTx ? 1 : 0)
+        : (canExpandTx ? 5 : filteredTx.length);
 
-    final expenseRows = _expenseBreakdown();
+    final expenseRows = _expenseBreakdown(filteredTx);
     final canExpandExpense = expenseRows.length > 4;
     final expenseItemCount = _showAllExpenses
         ? expenseRows.length + (canExpandExpense ? 1 : 0)
         : (canExpandExpense ? 5 : expenseRows.length);
 
-    final incomeRows = _incomeBreakdown();
+    final incomeRows = _incomeBreakdown(filteredTx);
     final canExpandIncome = incomeRows.length > 4;
     final incomeItemCount = _showAllIncome
         ? incomeRows.length + (canExpandIncome ? 1 : 0)
@@ -390,6 +558,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Filters at top
+          _buildFilterCard(),
+
           // ----- Transactions table -----
           _tableHeader(),
           const Divider(height: 1),
@@ -399,7 +570,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             physics: const NeverScrollableScrollPhysics(),
             itemCount: txItemCount,
             itemBuilder: (context, index) {
-              if (!_showAll && canExpand && index == 4) {
+              if (!_showAll && canExpandTx && index == 4) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Center(
@@ -411,7 +582,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 );
               }
 
-              if (_showAll && canExpand && index == txItemCount - 1) {
+              if (_showAll && canExpandTx && index == txItemCount - 1) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Center(
@@ -423,7 +594,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 );
               }
 
-              final t = _transactions[index];
+              final t = filteredTx[index];
 
               return Column(
                 children: [
