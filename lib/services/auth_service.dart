@@ -4,10 +4,16 @@ import 'api_client.dart';
 class AuthService {
   final _tokenStore = TokenStore();
 
-  Future<String> login(String userId) async {
+  Future<String> login({
+    required String emailOrUsername,
+    required String password,
+  }) async {
     final data = await ApiClient.post(
       'api/auth/login',
-      body: {'userId': userId},
+      body: {
+        'emailOrUsername': emailOrUsername,
+        'password': password,
+      },
       withAuth: false,
     );
 
