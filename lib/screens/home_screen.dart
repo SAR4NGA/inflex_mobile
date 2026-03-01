@@ -9,6 +9,7 @@ import '../services/token_store.dart';
 import 'categories_screen.dart';
 import 'transactions_screen.dart';
 import 'login_screen.dart';
+import 'comparison_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -196,6 +197,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const CategoriesScreen()),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.compare_arrows),
+              label: const Text('Compare Months'),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ComparisonScreen()),
                 );
               },
             ),
