@@ -1,4 +1,5 @@
-# Financial Tracker App
+# Inflex_Mobile
+
 
 A robust Flutter mobile application designed to help users track their finances, manage transactions, and categorize expenses efficiently.
 
